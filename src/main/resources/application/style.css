@@ -1,0 +1,22 @@
+#textField, #regexField, #replaceField, #collectionDisplayArea, .itemField {
+    -fx-pref-width: 300px;
+}
+
+#collectionDisplayArea {
+    -fx-pref-height: 150px;
+}
+
+.button {
+    -fx-pref-width: 100px;
+    -fx-padding: 10px;
+}
+
+.hbox {
+    -fx-spacing: 10px;
+    -fx-padding: 10px;
+}
+
+.vbox {
+    -fx-spacing: 10px;
+    -fx-padding: 10px;
+}
