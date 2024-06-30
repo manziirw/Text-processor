@@ -14,7 +14,7 @@ public class TextProcessingTool extends Application {
 
         // Create main layout
         BorderPane layout = new BorderPane();
-        Scene scene = new Scene(layout, 800, 600);
+        Scene scene = new Scene(layout, 1000, 600);
 
         // Create and set UI sections
         MainUI mainUI = new MainUI();

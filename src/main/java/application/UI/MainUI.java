@@ -3,6 +3,7 @@ package application.UI;
 import application.Data.DataManager;
 import application.Regex.RegexProcessor;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -11,15 +12,21 @@ public class MainUI {
 
     private RegexProcessor regexProcessor;
     private DataManager dataManager;
+    private ListView<String> listView;
 
     public MainUI() {
         regexProcessor = new RegexProcessor();
         dataManager = new DataManager();
+        listView = new ListView<>();
     }
 
     public VBox createRegexSection() {
         VBox box = new VBox();
         box.setSpacing(10);
+
+        // Add heading for the text processor section
+        Label headingLabel = new Label("Text Processor");
+        headingLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;"); // Optional: Style the heading
 
         TextField textField = new TextField();
         textField.setPromptText("Enter text here");
@@ -41,7 +48,7 @@ public class MainUI {
         replaceField.setPromptText("Enter replacement text here");
         replaceField.setId("replaceField");
 
-        box.getChildren().addAll(textField, regexField, searchButton, matchButton, replaceButton, replaceField, resultArea);
+        box.getChildren().addAll(headingLabel, textField, regexField, searchButton, matchButton, replaceButton, replaceField, resultArea);
 
         searchButton.setOnAction(e -> {
             String text = textField.getText();
@@ -72,19 +79,20 @@ public class MainUI {
         VBox box = new VBox();
         box.setSpacing(10);
 
+        // Add heading for the data management section
+        Label headingLabel = new Label("Data Collection");
+        headingLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;"); // Optional: Style the heading
+
         Label collectionTypeLabel = new Label("Collection Type:");
         ComboBox<String> collectionTypeComboBox = new ComboBox<>();
         collectionTypeComboBox.setItems(FXCollections.observableArrayList("List", "Set", "Map"));
         collectionTypeComboBox.setValue("List");
 
-        Label currentCollectionLabel = new Label("Current Collection:");
-        ComboBox<String> currentCollectionComboBox = new ComboBox<>();
-        currentCollectionComboBox.setItems(FXCollections.observableArrayList("List1", "List2", "Set1", "Map1"));
-        currentCollectionComboBox.setValue("List1");
-
         TextArea collectionDisplayArea = new TextArea();
         collectionDisplayArea.setEditable(false);
         collectionDisplayArea.setId("collectionDisplayArea");
+
+        listView.setPrefHeight(100);
 
         Button addButton = new Button("Add");
         Button editButton = new Button("Edit");
@@ -96,72 +104,149 @@ public class MainUI {
         itemField.setPromptText("Enter item here");
         itemField.setId("itemField");
 
-        Button addItemButton = new Button("Add to Collection");
-        Button updateItemButton = new Button("Update Selected Item");
         Button findItemButton = new Button("Find Item");
 
         box.getChildren().addAll(
+                headingLabel,  // Add the heading to the VBox
                 new HBox(collectionTypeLabel, collectionTypeComboBox),
-                new HBox(currentCollectionLabel, currentCollectionComboBox),
                 collectionDisplayArea,
+                listView,
                 new HBox(addButton, editButton, deleteButton, clearButton),
                 itemOperationsLabel,
                 itemField,
-                new HBox(addItemButton, updateItemButton, findItemButton)
+                new HBox(findItemButton)
         );
+
+        collectionTypeComboBox.setOnAction(e -> {
+            String selectedType = collectionTypeComboBox.getValue();
+            updateCollectionDisplay(selectedType, collectionDisplayArea);
+        });
 
         addButton.setOnAction(e -> {
             String item = itemField.getText().trim();
             if (!item.isEmpty()) {
-                dataManager.addToList(item);
-                collectionDisplayArea.setText("ArrayList: " + dataManager.getArrayList().toString());
+                String selectedType = collectionTypeComboBox.getValue();
+                if (selectedType.equals("List")) {
+                    dataManager.addToList(item);
+                    updateCollectionDisplay(selectedType, collectionDisplayArea);
+                } else if (selectedType.equals("Set")) {
+                    if (dataManager.findInSet(item)) {
+                        collectionDisplayArea.setText("Duplicate items are not allowed in a Set.");
+                    } else {
+                        dataManager.addToSet(item);
+                        updateCollectionDisplay(selectedType, collectionDisplayArea);
+                    }
+                } else if (selectedType.equals("Map")) {
+                    String[] keyValue = item.split("=");
+                    if (keyValue.length == 2) {
+                        dataManager.addToMap(keyValue[0], keyValue[1]);
+                        updateCollectionDisplay(selectedType, collectionDisplayArea);
+                    } else {
+                        collectionDisplayArea.setText("Invalid input format for Map. Use key=value.");
+                    }
+                }
             } else {
                 collectionDisplayArea.setText("Please enter an item.");
             }
         });
 
         editButton.setOnAction(e -> {
-            if (!dataManager.getArrayList().isEmpty()) {
-                String item = itemField.getText();
-                dataManager.updateList(0, item);
-                collectionDisplayArea.setText("ArrayList: " + dataManager.getArrayList().toString());
+            String item = itemField.getText().trim();
+            String selectedType = collectionTypeComboBox.getValue();
+            String selectedItem = listView.getSelectionModel().getSelectedItem();
+            if (selectedItem != null) {
+                if (selectedType.equals("List")) {
+                    int index = dataManager.getArrayList().indexOf(selectedItem);
+                    dataManager.updateList(index, item);
+                    updateCollectionDisplay(selectedType, collectionDisplayArea);
+                } else if (selectedType.equals("Set")) {
+                    dataManager.updateSet(selectedItem, item);
+                    updateCollectionDisplay(selectedType, collectionDisplayArea);
+                } else if (selectedType.equals("Map")) {
+                    String[] keyValue = item.split("=");
+                    if (keyValue.length == 2) {
+                        dataManager.updateMap(keyValue[0], keyValue[1]);
+                        updateCollectionDisplay(selectedType, collectionDisplayArea);
+                    } else {
+                        collectionDisplayArea.setText("Invalid input format for Map. Use key=value.");
+                    }
+                }
             } else {
-                collectionDisplayArea.setText("ArrayList is empty.");
+                collectionDisplayArea.setText("No item selected for editing.");
             }
         });
 
         deleteButton.setOnAction(e -> {
-            if (!dataManager.getArrayList().isEmpty()) {
-                dataManager.deleteFromList(0);
-                collectionDisplayArea.setText("ArrayList: " + dataManager.getArrayList().toString());
+            String selectedType = collectionTypeComboBox.getValue();
+            String selectedItem = listView.getSelectionModel().getSelectedItem();
+            if (selectedItem != null) {
+                if (selectedType.equals("List")) {
+                    int index = dataManager.getArrayList().indexOf(selectedItem);
+                    dataManager.deleteFromList(index);
+                    updateCollectionDisplay(selectedType, collectionDisplayArea);
+                } else if (selectedType.equals("Set")) {
+                    dataManager.deleteFromSet(selectedItem);
+                    updateCollectionDisplay(selectedType, collectionDisplayArea);
+                } else if (selectedType.equals("Map")) {
+                    String[] keyValue = selectedItem.split("=");
+                    if (keyValue.length == 2) {
+                        dataManager.deleteFromMap(keyValue[0]);
+                        updateCollectionDisplay(selectedType, collectionDisplayArea);
+                    }
+                }
             } else {
-                collectionDisplayArea.setText("ArrayList is empty.");
+                collectionDisplayArea.setText("No item selected for deletion.");
             }
         });
 
         clearButton.setOnAction(e -> {
-            dataManager.clearList();
-            collectionDisplayArea.setText("ArrayList cleared.");
-        });
-
-        addItemButton.setOnAction(e -> {
-            String item = itemField.getText();
-            dataManager.addToSet(item);
-            collectionDisplayArea.setText("HashSet: " + dataManager.getHashSet().toString());
-        });
-
-        updateItemButton.setOnAction(e -> {
-            String item = itemField.getText();
-            dataManager.updateMap("key", item);
-            collectionDisplayArea.setText("HashMap: " + dataManager.getHashMap().toString());
+            String selectedType = collectionTypeComboBox.getValue();
+            if (selectedType.equals("List")) {
+                dataManager.clearList();
+            } else if (selectedType.equals("Set")) {
+                dataManager.clearSet();
+            } else if (selectedType.equals("Map")) {
+                dataManager.clearMap();
+            }
+            updateCollectionDisplay(selectedType, collectionDisplayArea);
         });
 
         findItemButton.setOnAction(e -> {
             String item = itemField.getText();
-            boolean found = dataManager.findInList(item);
-            collectionDisplayArea.setText(found ? "Item found in list" : "Item not found in list");
+            String selectedType = collectionTypeComboBox.getValue();
+            boolean found = false;
+            if (selectedType.equals("List")) {
+                found = dataManager.findInList(item);
+            } else if (selectedType.equals("Set")) {
+                found = dataManager.findInSet(item);
+            } else if (selectedType.equals("Map")) {
+                found = dataManager.findInMap(item);
+            }
+            collectionDisplayArea.setText(found ? "Item found in " + selectedType : "Item not found in " + selectedType);
         });
 
         return box;
+    }
+
+    private void updateCollectionDisplay(String collectionType, TextArea displayArea) {
+        ObservableList<String> items = FXCollections.observableArrayList();
+        switch (collectionType) {
+            case "List":
+                items.addAll(dataManager.getArrayList());
+                displayArea.setText("ArrayList: " + dataManager.getArrayList().toString());
+                break;
+            case "Set":
+                items.addAll(dataManager.getHashSet());
+                displayArea.setText("HashSet: " + dataManager.getHashSet().toString());
+                break;
+            case "Map":
+                dataManager.getHashMap().forEach((key, value) -> items.add(key + "=" + value));
+                displayArea.setText("HashMap: " + dataManager.getHashMap().toString());
+                break;
+            default:
+                displayArea.setText("");
+                break;
+        }
+        listView.setItems(items);
     }
 }
